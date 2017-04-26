@@ -34,6 +34,26 @@ function skp_greeklish_slugs_cb() {
     <?php
 }
 
+
+add_action( 'update_option_skp_greeklish_slugs', 'skp_greeklish_slugs_runonce', 10, 2 );
+/**
+*@author lenasterg
+*@todo as array of postsId use users defined posts
+*/
+function skp_greeklish_slugs_runonce( $old_value, $new_value ) {
+	$old_runOnce = $old_value['runonceforall'];
+	$new_runOnce = $new_value['runonceforall'];
+    if ($old_runOnce==$new_runOnce) {
+		return false;
+	}
+	else {
+	if ($new_runOnce=='1' ) {
+        $postsId=array('55','2');
+		skp_greeklish_slugs_update_all($postsId);
+		}
+	}
+}
+
 /**
  * Register Settings
  *
@@ -65,6 +85,13 @@ function register_settings_skp_greeklish_slugs() {
         'skp_greeklish_slugs_stopw',
         __( 'Stop words<br/> <p style="font-weight: normal;">Enter words that you want to remove from slugs.</p>', 'skp_greeklish_slugs' ),
         'skp_greeklish_slugs_stopw_cb',
+        'skp-greeklish-slugs',
+        'skp_greeklish_slugs_main_section'
+    );
+    add_settings_field(
+        'skp_greeklish_slugs_runonceforall',
+        __( 'Run once for every posts<br/> ', 'skp_greeklish_slugs' ),
+        'skp_greeklish_slugs_runonceforall_cb',
         'skp-greeklish-slugs',
         'skp_greeklish_slugs_main_section'
     );
@@ -132,6 +159,27 @@ function skp_greeklish_slugs_stopw_cb() {
 }
 
 /**
+ * Add RunOnce checkbox
+ *@author lenasterg
+ *
+ */
+function skp_greeklish_slugs_runonceforall_cb() {
+    $options = get_option( 'skp_greeklish_slugs' );
+    $checked = esc_attr( $options['runonceforall'] );
+	if ('1' == $checked ) { ?>
+	You have done it already once. 
+	<input type="hidden"   name="skp_greeklish_slugs[runonceforall]"
+        id="skp_greeklish_slugs_runonceforall" value="<?php echo $checked;?>"/>
+    <?php   } else {?>
+	<p style="font-weight: normal;">Caution: This is NOT REVERSABLE.</p>
+    <input type="checkbox"
+        name="skp_greeklish_slugs[runonceforall]"
+        id="skp_greeklish_slugs_runonceforall"
+        value="1"  />
+	<?php }
+}
+
+/**
  * Delete options on uninstall
  *
  */
@@ -156,7 +204,36 @@ function skp_greeklish_slugs_options_validate($input) {
     $options['char']               = filter_var( $input['char'], FILTER_SANITIZE_NUMBER_INT );
     $options['chars']              = filter_var( $input['chars'], FILTER_SANITIZE_NUMBER_INT );
     $options['stopw']              = sanitize_text_field( $input['stopw'] );
+    $options['runonceforall']      = sanitize_text_field( $input['runonceforall'] );
     $options['delete_option_data'] = filter_var( $input['delete_option_data'], FILTER_SANITIZE_NUMBER_INT );
 
     return $options;
+}
+
+/**
+*@author lenasterg
+*/
+function skp_greeklish_slugs_update_all($arrayOfPostsIds) {
+	$args = array(
+	'include'=>$arrayOfPostsIds);
+    $posts = get_posts($args);
+	
+	 foreach ( $posts as $post ) {
+		$my_post=$post;
+
+		$my_post->post_name=sanitize_title($post->post_title);
+
+		 wp_update_post( $my_post,true );
+	
+	    }
+	add_action( 'admin_notices', 'skp_greeklish_slugs_update_all_done_notice' );
+}
+
+/**
+*@author lenasterg
+*/
+function skp_greeklish_slugs_update_all_done_notice() {
+	$class = 'notice notice-success';
+	$message = __( 'Done! All Slugs are updated', 'skp_greeklish_slugs' );
+	printf( '<div class="%1$s"><p>%2$s</p></div>', esc_attr( $class ), esc_html( $message ) ); 
 }
